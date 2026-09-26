@@ -21,7 +21,11 @@ async function fetchMetadata(id, type) {
   return null;
 }
 
-export async function resolveMovieStreams(client, id, type) {
+export async function resolveMovieStreams(client, id, type, req) {
+  const protocol = req?.headers?.["x-forwarded-proto"] || req?.protocol || "http";
+  const host = req?.headers?.["x-forwarded-host"] || req?.get?.("host") || `127.0.0.1:${process.env.PORT || 7000}`;
+  const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+
   const cacheKey = `${type}_${id}`;
   if (streamCache.has(cacheKey)) {
     const cached = streamCache.get(cacheKey);
@@ -29,7 +33,10 @@ export async function resolveMovieStreams(client, id, type) {
     const ttl = (process.env.CACHE_TTL || 3600) * 1000;
     if (Date.now() - cached.timestamp < ttl) {
       console.log(`[INFO] Serving cached streams for ${id}`);
-      return cached.streams;
+      return cached.streams.map(s => ({
+        ...s,
+        url: `${baseUrl}/stream/${s._chatId}/${s._messageId}/video.mkv`
+      }));
     } else {
       streamCache.delete(cacheKey);
     }
@@ -75,14 +82,14 @@ export async function resolveMovieStreams(client, id, type) {
     let description = `${result.filename}\n📁 ${sizeGB} GB • ${parsed.source || "Unknown"} • ${parsed.codec || ""} • ${parsed.audio || ""}`;
 
     // Stremio URL format for our proxy
-    // We pass chatId and messageId to our proxy
-    const proxyUrl = `http://127.0.0.1:${process.env.PORT || 7000}/stream/${result.chatId}/${result.messageId}/video.mkv`;
+    const proxyUrl = `${baseUrl}/stream/${result.chatId}/${result.messageId}/video.mkv`;
 
     validStreams.push({
       name,
       description,
       url: proxyUrl,
-      // Internal metadata for sorting and deduplication
+      _chatId: result.chatId,
+      _messageId: result.messageId,
       _resolution: parsed.resolution,
       _size: result.size,
       _filename: result.filename

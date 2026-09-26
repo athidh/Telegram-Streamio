@@ -14,7 +14,7 @@ export function createStremioRouter(telegramClient, streamClient) {
     }
 
     try {
-      const streams = await resolveMovieStreams(telegramClient, id, type);
+      const streams = await resolveMovieStreams(telegramClient, id, type, req);
       res.json({ streams });
     } catch (error) {
       console.error("Error resolving streams:", error);
