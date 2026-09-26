@@ -22,9 +22,11 @@ async function fetchMetadata(id, type) {
 }
 
 export async function resolveMovieStreams(client, id, type, req) {
-  const protocol = req?.headers?.["x-forwarded-proto"] || req?.protocol || "http";
-  const host = req?.headers?.["x-forwarded-host"] || req?.get?.("host") || `127.0.0.1:${process.env.PORT || 7000}`;
-  const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+  const rawProto = req?.headers?.["x-forwarded-proto"] || req?.protocol || "http";
+  const protocol = String(rawProto).split(",")[0].trim();
+  const rawHost = req?.headers?.["x-forwarded-host"] || req?.get?.("host") || `127.0.0.1:${process.env.PORT || 7000}`;
+  const host = String(rawHost).split(",")[0].trim();
+  const baseUrl = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/+$/, "") : `${protocol}://${host}`;
 
   const cacheKey = `${type}_${id}`;
   if (streamCache.has(cacheKey)) {
